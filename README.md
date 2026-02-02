@@ -1,0 +1,2 @@
+# KappaCupSummer_Team3
+これはカッパ杯サマーに展示する用の作品です
