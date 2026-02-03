@@ -1,59 +1,46 @@
 #include "stdafx.h"
 #include "system/system.h"
 
-#include<InitGUID.h>
-#include<dxgidebug.h>
 
-#include "Game.h"
+// K2EngineLowのグローバルアクセスポイント。
+K2EngineLow* g_k2EngineLow = nullptr;
 
-
-
-void ReportLiveObjects()
-{
-	IDXGIDebug* pDxgiDebug;
-
-	typedef HRESULT(__stdcall* fPtr)(const IID&, void**);
-	HMODULE hDll = GetModuleHandleW(L"dxgidebug.dll");
-	fPtr DXGIGetDebugInterface = (fPtr)GetProcAddress(hDll, "DXGIGetDebugInterface");
-
-	DXGIGetDebugInterface(__uuidof(IDXGIDebug), (void**)&pDxgiDebug);
-
-	// 出力。
-	pDxgiDebug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_DETAIL);
-}
-
-///////////////////////////////////////////////////////////////////
-// ウィンドウプログラムのメイン関数。
-///////////////////////////////////////////////////////////////////
+/// <summary>
+/// メイン関数
+/// </summary>
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-	//ゲームの初期化。
+	// ゲームの初期化。
 	InitGame(hInstance, hPrevInstance, lpCmdLine, nCmdShow, TEXT("Game"));
-	//////////////////////////////////////
-	// ここから初期化を行うコードを記述する。
-	//////////////////////////////////////
-
-	//Gameクラスのオブジェクトを作成。
-	NewGO<Game>(0, "game");
-
-	//////////////////////////////////////
-	// 初期化を行うコードを書くのはここまで！！！
-	//////////////////////////////////////
 	
+	// k2EngineLowの初期化。
+	g_k2EngineLow = new K2EngineLow();
+	g_k2EngineLow->Init(g_hWnd, FRAME_BUFFER_W, FRAME_BUFFER_H);
+	g_camera3D->SetPosition({ 0.0f, 100.0f, -200.0f });
+	g_camera3D->SetTarget({ 0.0f, 50.0f, 0.0f });
+
+
 	// ここからゲームループ。
 	while (DispatchWindowMessage())
 	{
-		if (g_pad[0]->IsTrigger(enButtonA) ){
-			g_pad[0]->SetVibration(/*durationSec=*/0.5f, /*normalizedPower=*/1.0f);
-		}
-		K2Engine::GetInstance()->Execute();
+		// フレームの開始時に呼び出す必要がある処理を実行
+		g_k2EngineLow->BeginFrame();
+
+		// ゲームオブジェクトマネージャーの更新処理を呼び出す。
+		g_k2EngineLow->ExecuteUpdate();
+
+		// ゲームオブジェクトマネージャーの描画処理を呼び出す。
+		g_k2EngineLow->ExecuteRender();
+
+		// デバッグ描画処理を実行する。
+		g_k2EngineLow->DebubDrawWorld();
+
+		// フレームの終了時に呼び出す必要がある処理を実行。
+		g_k2EngineLow->EndFrame();
 	}
 
-	K2Engine::DeleteInstance();
+	delete g_k2EngineLow;
 
-#ifdef _DEBUG
-	ReportLiveObjects();
-#endif // _DEBUG
 	return 0;
 }
 

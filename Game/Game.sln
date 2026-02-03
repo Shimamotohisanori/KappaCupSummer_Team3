@@ -4,9 +4,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.29613.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Game", "Game.vcxproj", "{282445E9-421F-46C0-9165-6C90D7C7EFC4}"
-	ProjectSection(ProjectDependencies) = postProject
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10} = {DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BulletCollision", "..\k2EngineLow\ExEngine\bulletPhysics\src\BulletCollision\BulletCollision.vcxproj", "{28EF574A-84DB-3CB0-9B45-DB3545B2D05C}"
 EndProject
@@ -18,11 +15,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "k2EngineLow", "..\k2EngineL
 		{28EF574A-84DB-3CB0-9B45-DB3545B2D05C} = {28EF574A-84DB-3CB0-9B45-DB3545B2D05C}
 		{4DCE52A5-106C-3D94-815D-C8EBC6133B5E} = {4DCE52A5-106C-3D94-815D-C8EBC6133B5E}
 		{9BF1ADF3-EB57-35E8-B156-ADE8FFC7E2F0} = {9BF1ADF3-EB57-35E8-B156-ADE8FFC7E2F0}
-	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "k2Engine", "..\k2Engine\k2Engine.vcxproj", "{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}"
-	ProjectSection(ProjectDependencies) = postProject
-		{23A5590A-18F2-4B56-B270-079C4F787FE8} = {23A5590A-18F2-4B56-B270-079C4F787FE8}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BulletDynamics", "..\k2EngineLow\ExEngine\bulletPhysics\src\BulletDynamics\BulletDynamics.vcxproj", "{9BF1ADF3-EB57-35E8-B156-ADE8FFC7E2F0}"
@@ -89,18 +81,6 @@ Global
 		{23A5590A-18F2-4B56-B270-079C4F787FE8}.Release|x64.Build.0 = Release|x64
 		{23A5590A-18F2-4B56-B270-079C4F787FE8}.Release|x86.ActiveCfg = Release|Win32
 		{23A5590A-18F2-4B56-B270-079C4F787FE8}.Release|x86.Build.0 = Release|Win32
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Debug|x64.ActiveCfg = Debug|x64
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Debug|x64.Build.0 = Debug|x64
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Debug|x86.ActiveCfg = Debug|Win32
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Debug|x86.Build.0 = Debug|Win32
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Preview|x64.ActiveCfg = Preview|x64
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Preview|x64.Build.0 = Preview|x64
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Preview|x86.ActiveCfg = Preview|Win32
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Preview|x86.Build.0 = Preview|Win32
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Release|x64.ActiveCfg = Release|x64
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Release|x64.Build.0 = Release|x64
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Release|x86.ActiveCfg = Release|Win32
-		{DD0C2B00-A78A-4C42-9AB6-D54B3AC1CE10}.Release|x86.Build.0 = Release|Win32
 		{9BF1ADF3-EB57-35E8-B156-ADE8FFC7E2F0}.Debug|x64.ActiveCfg = Debug|x64
 		{9BF1ADF3-EB57-35E8-B156-ADE8FFC7E2F0}.Debug|x64.Build.0 = Debug|x64
 		{9BF1ADF3-EB57-35E8-B156-ADE8FFC7E2F0}.Debug|x86.ActiveCfg = Debug|Win32
