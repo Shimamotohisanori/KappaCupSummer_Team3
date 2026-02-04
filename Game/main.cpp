@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "system/system.h"
 
+#include "Game.h"
 
 // K2EngineLowのグローバルアクセスポイント。
 K2EngineLow* g_k2EngineLow = nullptr;
@@ -19,10 +20,26 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	g_camera3D->SetPosition({ 0.0f, 100.0f, -200.0f });
 	g_camera3D->SetTarget({ 0.0f, 50.0f, 0.0f });
 
+	/////////////////////////////////////
+	//レンダリングエンジンの変数を作る
+	RenderingEngine renderingEngine;
 
+	//レンダリングパイプラインを初期化する
+	renderingEngine.Init(false);
+
+	//レンダリングエンジンのアドレスを代入する
+	g_renderingEngine = &renderingEngine;
+
+	NewGO<Game>(0, "game");
+	/////////////////////////////////////
+	// 
+	// 
 	// ここからゲームループ。
 	while (DispatchWindowMessage())
 	{
+		//レンダリングコンテキストを取得して、レンダーコンテキストに代入
+		auto& renderContext = g_graphicsEngine->GetRenderContext();
+
 		// フレームの開始時に呼び出す必要がある処理を実行
 		g_k2EngineLow->BeginFrame();
 
@@ -31,6 +48,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
 		// ゲームオブジェクトマネージャーの描画処理を呼び出す。
 		g_k2EngineLow->ExecuteRender();
+
+		//レンダリングエンジンを使って、レンダリングパイプラインを実行(引数はレンダーコンテキスト)
+		renderingEngine.Execute(renderContext);
 
 		// デバッグ描画処理を実行する。
 		g_k2EngineLow->DebubDrawWorld();

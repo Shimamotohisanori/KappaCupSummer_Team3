@@ -5,13 +5,17 @@
 namespace nsK2EngineLow {
 	K2EngineLow* g_engine = nullptr;
 	GameTime* g_gameTime = nullptr;
+	//レンダリングエンジン型のグローバル変数を作る
+	//これで、k2Engine内部で使えれるようになる
+	RenderingEngine* g_renderingEngine = nullptr;
 
 	K2EngineLow::~K2EngineLow()
 	{
 		// グローバルなアクセスポイントにnullptrを代入。
 		g_graphicsEngine = nullptr;
 		g_gameTime = nullptr;
-		
+		g_renderingEngine = nullptr;
+
 		delete m_graphicsEngine;
 		
 		//ゲームオブジェクトマネージャーを削除。

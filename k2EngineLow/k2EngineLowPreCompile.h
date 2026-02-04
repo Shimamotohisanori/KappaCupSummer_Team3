@@ -106,6 +106,15 @@ static const int MAX_BONE = 512;	// ボーンの最大数。
 #include <xaudio2fx.h>
 
 
+//K2engineLowPreCompileではインクルードしたヘッダー元のクラスをどこでも使えるようにする場所である
+//追加しすぎると重たくなるので注意
+//今後追加したいものはこの下に追加する
+/************************************/
+#include "graphics/ModelRender.h"
+#include "graphics/RenderingEngine.h"
+
+/**************************************/
+
 #include "graphics/effect/EffectEngine.h"
 #include "sound/SoundSource.h"
 #include "graphics/effect/EffectEmitter.h"
