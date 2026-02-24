@@ -112,7 +112,8 @@ static const int MAX_BONE = 512;	// ƒ{[ƒ“‚ÌÅ‘å”B
 /************************************/
 #include "graphics/ModelRender.h"
 #include "graphics/RenderingEngine.h"
-
+#include "graphics/light/SceneLight.h"
+#include "graphics/light/SpotLight.h"
 /**************************************/
 
 #include "graphics/effect/EffectEngine.h"

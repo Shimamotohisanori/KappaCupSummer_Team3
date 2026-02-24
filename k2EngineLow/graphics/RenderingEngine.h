@@ -1,5 +1,12 @@
 #pragma once
 #include "MyRenderer.h"
+#include "graphics/preRender/ShadowMapRender.h"
+#include "graphics/postEffect/postEffect.h"
+#include "graphics/light/SceneLight.h"
+#include "graphics/preRender/LightCulling.h"
+#include "geometry/SceneGeometryData.h"
+#include "graphics/light/VolumeLightRender.h"
+
 namespace nsK2EngineLow {
 
 	class RenderingEngine : public Noncopyable
@@ -9,7 +16,7 @@ namespace nsK2EngineLow {
             // ディファードライティング用の定数バッファ
             struct SDeferredLightingCB
             {
-                            // ライト
+                Light m_light;              // ライト
                 Matrix mlvp[MAX_DIRECTIONAL_LIGHT][NUM_SHADOW_MAP]; // ライトビュープロジェクション行列。
                 float m_iblLuminance;       // IBLの明るさ。
                 int m_isIBL;                // IBLを行う。
@@ -19,7 +26,7 @@ namespace nsK2EngineLow {
             /// レイトレ用のライトデータ。
             /// </summary>
             struct RaytracingLightData {
-                  // ディレクショナルライト。
+                DirectionalLight m_directionalLight;  // ディレクショナルライト。
                 Vector3 m_ambientLight;               // 環境光。IBLテクスチャが指定されていない場合に利用される。
                 float m_iblIntencity;                 // IBL強度。
                 int m_enableIBLTexture;               // IBLテクスチャが指定されている。
@@ -83,16 +90,16 @@ namespace nsK2EngineLow {
             /// </summary>
             void RequestRebuildRaytracingWorld()
             {
-             
+                g_graphicsEngine->RequestRebuildRaytracingWorld();
             }
             /// <summary>
             /// レイトレワールドからモデルを削除。
             /// </summary>
             /// <param name="model">削除するモデル。</param>
-            void RemoveModelFromRaytracingWorld(Model& model)
+           /* void RemoveModelFromRaytracingWorld(Model& model)
             {
-               
-            }
+                g_graphicsEngine->RemoveModelFromRaytracingWorld(model);
+            }*/
             /// <summary>
             /// ZPrepassで作成された深度テクスチャを取得
             /// </summary>
@@ -132,7 +139,7 @@ namespace nsK2EngineLow {
             /// <returns></returns>o
             Texture& GetLuminanceAvgTextureInScene()
             {
-                
+                return m_postEffect.GetLuminanceAvgTextureInScene();
             }
             /// <summary>
             /// レンダリングパイプラインを実行
@@ -147,7 +154,7 @@ namespace nsK2EngineLow {
             /// <param name="color"></param>
             void SetDirectionLight(int lightNo, Vector3 direction, Vector3 color)
             {
-                
+				m_sceneLight.SetDirectionLight(lightNo, direction, color);
             }
             void SetMainRenderTargetAndDepthStencilBuffer(RenderContext& rc)
             {
@@ -188,9 +195,12 @@ namespace nsK2EngineLow {
             /// <param name="nearArea">近影エリア率。0.0f～1.0f</param>
             /// <param name="nearArea">中影エリア率。0.0f～1.0f</param>
             /// <param name="nearArea">遠影エリア率。0.0f～1.0f</param>
-          
-
-
+            void  SetCascadeNearAreaRates(float nearArea, float middleArea, float farArea)
+            {
+                for (auto& renderer : m_shadowMapRenders) {
+                    renderer.SetCascadeNearAreaRates(nearArea, middleArea, farArea);
+                }
+            }
             /// <summary>
             /// ビューカリングのためのビュープロジェクション行列を取得。
             /// </summary>
@@ -210,22 +220,24 @@ namespace nsK2EngineLow {
             /// <param name="changeSceneTime">シーン切り替えにかかる時間。</param>
             void NotifyChangeScene(float changeSceneTime)
             {
-                
+                m_postEffect.NotifyChangeScene(changeSceneTime);
             }
             /// <summary>
             /// 幾何学データを登録
             /// </summary>
             /// <param name="geomData">幾何学データ</param>
-           
-
-
+            void RegisterGeometryData(GeometryData* geomData)
+            {
+                m_sceneGeometryData.RegisterGeometryData(geomData);
+            }
             /// <summary>
             /// 幾何学データの登録解除。
             /// </summary>
             /// <param name="geomData"></param>
-           
-
-
+            void UnregisterGeometryData(GeometryData* geomData)
+            {
+                m_sceneGeometryData.UnregisterGeometryData(geomData);
+            }
             /// <summary>
             /// 更新。
             /// </summary>
@@ -270,9 +282,16 @@ namespace nsK2EngineLow {
             /// シャドウマップテクスチャにクエリを行う。
             /// </summary>
             /// <param name="queryFunc">クエリ関数</param>
-            
-
-
+            void QueryShadowMapTexture(std::function< void(Texture& shadowMap) > queryFunc)
+            {
+                for (int i = 0; i < MAX_DIRECTIONAL_LIGHT; i++)
+                {
+                    for (int areaNo = 0; areaNo < NUM_SHADOW_MAP; areaNo++)
+                    {
+                        queryFunc(m_shadowMapRenders[i].GetShadowMap(areaNo));
+                    }
+                }
+            }
             SDeferredLightingCB& GetDeferredLightingCB()
             {
                 return m_deferredLightingCB;
@@ -282,14 +301,14 @@ namespace nsK2EngineLow {
             /// </summary>
             void DisableTonemap()
             {
-               
+                m_postEffect.DisableTonemap();
             }
             /// <summary>
             /// トーンマップを有効にする。
             /// </summary>
             void EnableTonemap()
             {
-                
+                m_postEffect.EnableTonemap();
             }
             /// <summary>
             /// トーンマップが有効か判定する。
@@ -297,7 +316,7 @@ namespace nsK2EngineLow {
             /// <returns></returns>
             bool IsEnableTonemap() const
             {
-               
+                return m_postEffect.IsEnableTonemap();
             }
             /// <summary>
             /// シーンの中間の明るさを示す明度率を指定する。
@@ -309,7 +328,7 @@ namespace nsK2EngineLow {
             /// </remark>
             void SetSceneMiddleGray(float luminance)
             {
-               
+                m_postEffect.SetTonemapMiddlegray(luminance);
             }
             /// <summary>
             /// シーンの中間の明るさを示す明度率を取得する。
@@ -317,7 +336,7 @@ namespace nsK2EngineLow {
             /// <returns></returns>
             float GetSceneMiddleGray() const
             {
-               
+                return m_postEffect.GetTonemapMiddlegray();
             }
             /// <summary>
             /// ブルームが発生する閾値を設定。
@@ -325,7 +344,7 @@ namespace nsK2EngineLow {
             /// <param name="value"></param>
             void SetBloomThreshold(float value)
             {
-               
+                m_postEffect.SetBloomThreshold(value);
             }
             /// <summary>
             /// ブルームが発生する閾値を取得。
@@ -333,29 +352,32 @@ namespace nsK2EngineLow {
             /// <returns></returns>
             float GetBloomThreshold() const
             {
-                
+                return m_postEffect.GetBloomThreshold();
             }
             /// <summary>
             /// ボリュームスポットライトをシーンに追加
             /// </summary>
             /// <param name="lig">ライト</param>
-          
-
-
+            void AddVolumeSpotLight(VolumeLightBase& lig)
+            {
+                m_volumeLightRender.AddVolumeSpotLight(lig);
+            }
             /// <summary>
             /// ボリュームスポットライトをシーンから削除
             /// </summary>
             /// <param name="lig"></param>
-            
-
-
+            void RemoveVolumeSpotLight(VolumeLightBase& lig)
+            {
+                m_volumeLightRender.RemoveVolumeSpotLight(lig);
+            }
             /// <summary>
             /// ボリュームライトレンダラーを取得。
             /// </summary>
             /// <returns></returns>
-          
-
-
+            VolumeLightRender& GetVolumeLightRender()
+            {
+                return m_volumeLightRender;
+            }
             /// <summary>
             /// 環境光の計算のためのIBLテクスチャを設定。
             /// </summary>
@@ -382,7 +404,7 @@ namespace nsK2EngineLow {
             /// </summary>
             void DisableIBLTextureForAmbient()
             {
-               
+                m_sceneLight.DisableIBLTextureForAmbient();
             }
             /// <summary>
             /// 環境光を設定。
@@ -390,29 +412,32 @@ namespace nsK2EngineLow {
             /// <param name="ambient"></param>
             void SetAmbient(Vector3 ambient)
             {
-               
+                m_sceneLight.SetAmbinet(ambient);
             }
             /// <summary>
             /// レイトレーシングが有効かどうかを判定する。
             /// </summary>
             /// <returns></returns>
-           
-
-
+            bool IsEnableRaytracing() const
+            {
+                return m_isEnableRaytracing && g_graphicsEngine->IsPossibleRaytracing();
+            }
             /// <summary>
             /// レイトレーシングを有効にします。
             /// この設定はハードウェアレイトレーシングが無効な場合は無視されます。
             /// </summary>
-          
-
-
+            void EnableRaytracing()
+            {
+                m_isEnableRaytracing = true && IsEnableRaytracing();
+            }
             /// <summary>
             /// レイトレーシングを無効にします。
             /// この設定はハードウェアレイトレーシングが無効な場合は無視されます。
             /// </summary>
-         
-
-
+            void DisableRaytracing()
+            {
+                m_isEnableRaytracing = false && IsEnableRaytracing();
+            }
             /// <summary>
             /// レイトレ用のライトデータを取得。
             /// </summary>
@@ -516,6 +541,8 @@ namespace nsK2EngineLow {
             /// 2D描画用のレンダ―ターゲットを初期化
             /// </summary>
             void Init2DRenderTarget();
+        public:
+
         private:
             // GBufferの定義
             enum EnGBuffer
@@ -545,9 +572,9 @@ namespace nsK2EngineLow {
                 eGITextureBlur_Num,
             };
             RaytracingLightData m_raytracingLightData;                      // レイトレ用のライトデータ。
-                                                // ライトカリング。 
-                  // シャドウマップへの描画処理
-                            // ボリュームライトレンダラー。
+            LightCulling m_lightCulling;                                    // ライトカリング。                                    // ライトカリング。 
+            ShadowMapRender m_shadowMapRenders[MAX_DIRECTIONAL_LIGHT];      // シャドウマップへの描画処理
+            VolumeLightRender m_volumeLightRender;               // ボリュームライトレンダラー。
             SDeferredLightingCB m_deferredLightingCB;                       // ディファードライティング用の定数バッファ
             Sprite m_copyMainRtToFrameBufferSprite;                         // メインレンダリングターゲットをフレームバッファにコピーするためのスプライト
             Sprite m_diferredLightingSprite;                                // ディファードライティングを行うためのスプライト
@@ -555,14 +582,14 @@ namespace nsK2EngineLow {
             RenderTarget m_mainRenderTarget;                                // メインレンダリングターゲット
             RenderTarget m_mainRTSnapshots[(int)EnMainRTSnapshot::enNum];   // メインレンダリングターゲットのスナップショット
             RenderTarget m_gBuffer[enGBufferNum];                           // G-Buffer
-                                                // ポストエフェクト
-            RWStructuredBuffer m_pointLightNoListInTileUAV;                 // タイルごとのポイントライトのリストのUAV。
+            PostEffect m_postEffect;                                        // ポストエフェクト
+            RWStructuredBuffer m_pointLightNoListInTileUAV;               // タイルごとのポイントライトのリストのUAV。
             RWStructuredBuffer m_spotLightNoListInTileUAV;                  // タイルごとのスポットライトのリストのUAV。
             std::vector< IRenderer* > m_renderObjects;                      // 描画オブジェクトのリスト。
-                                                // シーンライト。
+            SceneLight m_sceneLight;                                        // シーンライト。
             bool m_isSoftShadow = false;                                    // ソフトシャドウフラグ。
             Matrix m_viewProjMatrixForViewCulling;                          // ビューカリング用のビュープロジェクション行列。
-                                     // シーンのジオメトリ情報。
+            SceneGeometryData m_sceneGeometryData;                          // シーンのジオメトリ情報。
             static RenderingEngine* m_instance;		                        // 唯一のインスタンスのアドレスを記録する変数。
             RenderTarget m_2DRenderTarget;                                  // 2D描画用のレンダ―ターゲット。
             Sprite m_2DSprite;                                              // 2D合成用のスプライト。

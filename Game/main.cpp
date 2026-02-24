@@ -3,6 +3,17 @@
 
 #include "Game.h"
 
+struct DirectionLight
+{
+	Vector3 lightDirection; //ライトの方向
+
+	//HLSL側の定数バッファーであるfloat3型の変数は
+	//16の倍数のアドレスに配置されるためc++側にはパディングを埋めておく
+	float pad;
+
+	Vector3 ligColor; //ライトの色
+};
+
 // K2EngineLowのグローバルアクセスポイント。
 K2EngineLow* g_k2EngineLow = nullptr;
 
@@ -30,6 +41,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	//レンダリングエンジンのアドレスを代入する
 	g_renderingEngine = &renderingEngine;
 
+	//シーンライト(ディレクションライト)の変数を作る
+	//SceneLight sceneLight;
+
+	//シーンライトを初期化する
+	//sceneLight.Init();
+
+	//シーンライトのアドレスを代入する
+	//nsK2EngineLow::g_sceneLight = &sceneLight;
+
+	//renderingEngine.SetSceneLight(&sceneLight);
+
+	//ゲームオブジェクトを作る
 	NewGO<Game>(0, "game");
 	/////////////////////////////////////
 	// 

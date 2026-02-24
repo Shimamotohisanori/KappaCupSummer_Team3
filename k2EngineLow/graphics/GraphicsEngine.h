@@ -18,6 +18,13 @@
 
 namespace nsK2EngineLow {
 	/// <summary>
+	/// モデルの上方向。
+	/// </summary>
+	enum EnModelUpAxis {
+		enModelUpAxisY,		//モデルの上方向がY軸。
+		enModelUpAxisZ,		//モデルの上方向がZ軸。
+	};
+	/// <summary>
 	/// アルファブレンディングモード
 	/// </summary>
 	enum AlphaBlendMode {
@@ -155,6 +162,14 @@ namespace nsK2EngineLow {
 			return m_frameBuffer.GetCurrentDepthStencilViewDescriptorHandle();
 		}
 		/// <summary>
+		/// レイトレの結果のテクスチャを取得。
+		/// </summary>
+		/// <returns></returns>
+		Texture& GetRaytracingOutputTexture()
+		{
+			return m_raytracingEngine.GetOutputTexture();
+		}
+		/// <summary>
 		/// 3DModelをレイトレワールドに登録。
 		/// </summary>
 		/// <param name="model"></param>
@@ -176,6 +191,14 @@ namespace nsK2EngineLow {
 		void DispatchRaytracing(RenderContext& rc)
 		{
 			m_raytracingEngine.Dispatch(rc);
+		}
+		/// <summary>
+		/// レイトレ用のスカイキューブボックスを設定。
+		/// </summary>
+		/// <param name="skycubeBox"></param>
+		void SetRaytracingSkyCubeBox(Texture& skycubeBox)
+		{
+			m_raytracingEngine.SetSkyCubeBox(skycubeBox);
 		}
 		/// <summary>
 		/// フレームバッファにコピー。
@@ -234,6 +257,45 @@ namespace nsK2EngineLow {
 			// リソースが解放されてしまう。そのため、１フレーム遅延して開放する必要がある。
 			m_reqDelayRelease3d12ObjectList.push_back({ res, 1 });
 		}
+		/// <summary>
+		/// レイトレーシングを行うことが可能か判定。
+		/// </summary>
+		/// <returns>trueが返ってきたらレイトレを行える。</returns>
+		bool IsPossibleRaytracing() const
+		{
+			return m_isPossibleRaytracing;
+		}
+		/// <summary>
+		/// レイトレワールドの再構築リクエストを送る。
+		/// </summary>
+		void RequestRebuildRaytracingWorld()
+		{
+			if (m_isPossibleRaytracing) {
+				m_raytracingEngine.RequestRebuildRaytracingWorld();
+			}
+		}
+		/// <summary>
+		/// 3Dモデルをレイトレワールドから削除。
+		/// </summary>
+		/// <param name="model">削除するモデル</param>
+		//void RemoveModelFromRaytracingWorld(Model& model)
+		//{
+		//	if (m_isPossibleRaytracing) {
+		//		// ハードウェアレイトレーシングがサポートされている場合のみ。
+		//		m_raytracingEngine.RemoveGeometry(model);
+		//	}
+		//}
+		/// <summary>
+		/// レイトレーシングをディスパッチ。
+		/// </summary>
+		/// <param name="rc"></param>
+		//void DispatchRaytracing(RenderContext& rc)
+		//{
+		//	if (m_isPossibleRaytracing) {
+		//		// ハードウェアレイトレーシングがサポートされている場合のみ
+		//		m_raytracingEngine.Dispatch(rc);
+		//	}
+		//}
 #ifdef K2_DEBUG
 		void BeginGPUEvent(const char* eventName)
 		{
@@ -348,6 +410,7 @@ namespace nsK2EngineLow {
 		std::unique_ptr<DirectX::GraphicsMemory> m_directXTKGfxMemroy;					//DirectXTKのグラフィックメモリシステム。
 		bool m_isExecuteCommandList = false;											//コマンドリストをGPUに流した？
 		std::list< RequestDelayReleaseD3D12Object > m_reqDelayRelease3d12ObjectList;	// D3D12オブジェクトの遅延解放リクエストのリスト。
+		bool m_isPossibleRaytracing = false;		// レイトレーシングを行うことが可能？
 	};
 	extern GraphicsEngine* g_graphicsEngine;	//グラフィックスエンジン
 	extern Camera* g_camera2D;					//2Dカメラ。

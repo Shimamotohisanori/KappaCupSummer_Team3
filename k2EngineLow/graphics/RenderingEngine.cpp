@@ -6,19 +6,37 @@ namespace nsK2EngineLow {
     RenderingEngine::RenderingEngine()
     {
         // シーンライト
-       
+        g_sceneLight = &m_sceneLight;
     }
     RenderingEngine::~RenderingEngine()
     {
-        
+        g_sceneLight = nullptr;
     }
     void RenderingEngine::Init(bool isSoftShadow)
     {
         m_isSoftShadow = isSoftShadow;
-
+        
         InitZPrepassRenderTarget();
         InitMainRenderTarget();
-
+        m_volumeLightRender.Init();
+        InitGBuffer();
+        InitMainRTSnapshotRenderTarget();
+        InitCopyMainRenderTargetToFrameBufferSprite();
+        InitShadowMapRender();
+        InitDeferredLighting();
+        Init2DRenderTarget();
+        m_lightCulling.Init(
+            m_zprepassRenderTarget.GetRenderTargetTexture(),
+            m_diferredLightingSprite.GetExpandConstantBufferGPU(),
+            m_pointLightNoListInTileUAV,
+            m_spotLightNoListInTileUAV
+        );
+        m_postEffect.Init(
+            m_mainRenderTarget,
+            m_zprepassRenderTarget,
+            m_gBuffer[enGBufferNormal],
+            m_gBuffer[enGBufferMetaricShadowSmooth],
+            m_gBuffer[enGBufferAlbedoDepth]);
     }
     void RenderingEngine::InitDefferedLighting_Sprite()
     {
@@ -48,7 +66,23 @@ namespace nsK2EngineLow {
         spriteInitData.m_expandConstantBufferSize = sizeof(m_deferredLightingCB);
         spriteInitData.m_expandShaderResoruceView[0] = &m_pointLightNoListInTileUAV;
         spriteInitData.m_expandShaderResoruceView[1] = &m_spotLightNoListInTileUAV;
-      
+
+        if (g_graphicsEngine->IsPossibleRaytracing()) {
+            // レイトレを行うことが可能。
+            spriteInitData.m_expandShaderResoruceView[2] = &g_graphicsEngine->GetRaytracingOutputTexture();
+            spriteInitData.m_expandShaderResoruceView[3] = &m_giTextureBlur[eGITextureBlur_1024x1024].GetBokeTexture();
+            spriteInitData.m_expandShaderResoruceView[4] = &m_giTextureBlur[eGITextureBlur_512x512].GetBokeTexture();
+            spriteInitData.m_expandShaderResoruceView[5] = &m_giTextureBlur[eGITextureBlur_256x256].GetBokeTexture();
+            spriteInitData.m_expandShaderResoruceView[6] = &m_giTextureBlur[eGITextureBlur_128x128].GetBokeTexture();
+        }
+
+        for (int i = 0; i < MAX_DIRECTIONAL_LIGHT; i++)
+        {
+            for (int areaNo = 0; areaNo < NUM_SHADOW_MAP; areaNo++)
+            {
+                spriteInitData.m_textures[texNo++] = &m_shadowMapRenders[i].GetShadowMap(areaNo);
+            }
+        }
         if (m_iblData.m_texture.IsValid()) {
             spriteInitData.m_textures[texNo++] = &m_iblData.m_texture;
             m_deferredLightingCB.m_isIBL = 1;
@@ -66,6 +100,13 @@ namespace nsK2EngineLow {
 
         InitDefferedLighting_Sprite();
 
+        m_lightCulling.Init(
+            m_zprepassRenderTarget.GetRenderTargetTexture(),
+            m_diferredLightingSprite.GetExpandConstantBufferGPU(),
+            m_pointLightNoListInTileUAV,
+            m_spotLightNoListInTileUAV
+        );
+
         // イベントリスナーにIBLデータに変更があったことを通知する。
         for (auto& listener : m_eventListeners) {
             listener.listenerFunc(enEventReInitIBLTexture);
@@ -73,7 +114,10 @@ namespace nsK2EngineLow {
     }
     void RenderingEngine::InitShadowMapRender()
     {
-     
+        // シャドウマップの描画処理の初期化
+        for (auto& shadowMapRender : m_shadowMapRenders) {
+            shadowMapRender.Init(m_isSoftShadow);
+        }
     }
     void RenderingEngine::InitZPrepassRenderTarget()
     {
@@ -175,17 +219,21 @@ namespace nsK2EngineLow {
     {
         m_iblData.m_texture.InitFromDDSFile(iblTexFilePath);
         m_iblData.m_intencity = intencity;
-        //g_graphicsEngine->SetRaytracingSkyCubeBox(m_iblData.m_texture);
+        g_graphicsEngine->SetRaytracingSkyCubeBox(m_iblData.m_texture);
     }
     void RenderingEngine::InitDeferredLighting()
     {
-        // GIテクスチャを作成するためのブラー処理を初期化する。
-        //m_giTextureBlur[eGITextureBlur_1024x1024].Init(&g_graphicsEngine->GetRaytracingOutputTexture(), 1024, 1024);
-        m_giTextureBlur[eGITextureBlur_512x512].Init(&m_giTextureBlur[eGITextureBlur_1024x1024].GetBokeTexture(), 512, 512);
-        m_giTextureBlur[eGITextureBlur_256x256].Init(&m_giTextureBlur[eGITextureBlur_512x512].GetBokeTexture(), 256, 256);
-        m_giTextureBlur[eGITextureBlur_128x128].Init(&m_giTextureBlur[eGITextureBlur_256x256].GetBokeTexture(), 128, 128);
-
-        
+        if (g_graphicsEngine->IsPossibleRaytracing())
+        {
+            // GIテクスチャを作成するためのブラー処理を初期化する。
+            m_giTextureBlur[eGITextureBlur_1024x1024].Init(&g_graphicsEngine->GetRaytracingOutputTexture(), 1024, 1024);
+            m_giTextureBlur[eGITextureBlur_512x512].Init(&m_giTextureBlur[eGITextureBlur_1024x1024].GetBokeTexture(), 512, 512);
+            m_giTextureBlur[eGITextureBlur_256x256].Init(&m_giTextureBlur[eGITextureBlur_512x512].GetBokeTexture(), 256, 256);
+            m_giTextureBlur[eGITextureBlur_128x128].Init(&m_giTextureBlur[eGITextureBlur_256x256].GetBokeTexture(), 128, 128);
+        }
+		// シーンライトを初期化
+        m_sceneLight.Init();
+   
         // ポストエフェクト的にディファードライティングを行うためのスプライトを初期化
         InitDefferedLighting_Sprite();
     }
@@ -248,7 +296,9 @@ namespace nsK2EngineLow {
         // ビューカリング用のビュープロジェクション行列の計算。
         CalcViewProjectionMatrixForViewCulling();
         // シーンのジオメトリ情報の更新。
+        m_sceneGeometryData.Update();
         // シーンライトの更新。
+        m_sceneLight.Update();
     }
     void RenderingEngine::ComputeAnimatedVertex(RenderContext& rc)
     {
@@ -259,11 +309,14 @@ namespace nsK2EngineLow {
     void RenderingEngine::Execute(RenderContext& rc)
     {
         // シーンライトのデータをコピー。
+        m_deferredLightingCB.m_light = m_sceneLight.GetSceneLight();
+        m_deferredLightingCB.m_isEnableRaytracing = IsEnableRaytracing() ? 1 : 0;
+        
 
         // レイトレ用のライトデータをコピー。
-        //m_raytracingLightData.m_directionalLight = m_sceneLight.GetSceneLight().directionalLight[0];
+        m_raytracingLightData.m_directionalLight = m_sceneLight.GetSceneLight().directionalLight[0];
         m_raytracingLightData.m_iblIntencity = m_iblData.m_intencity;
-        //m_raytracingLightData.m_ambientLight = m_sceneLight.GetSceneLight().ambinetLight;
+        m_raytracingLightData.m_ambientLight = m_sceneLight.GetSceneLight().ambinetLight;
         m_raytracingLightData.m_enableIBLTexture = m_iblData.m_texture.IsValid() ? 1 : 0;
 
         // アニメーション済み頂点の計算。
@@ -276,33 +329,66 @@ namespace nsK2EngineLow {
         ZPrepass(rc);
 
         // ライトカリング
+        m_lightCulling.Execute(rc);
 
         // G-Bufferへのレンダリング
-
+        RenderToGBuffer(rc);
         // レイトレで映り込み画像を作成する。
+        if (IsEnableRaytracing()) {
+            g_graphicsEngine->DispatchRaytracing(rc);
+            for (auto& blur : m_giTextureBlur) {
+                blur.ExecuteOnGPU(rc, 5);
+            }
+        }
 
         // ディファードライティング
-
+        DeferredLighting(rc);
         // 不透明オブジェクトの描画が終わった時点でスナップショットを撮影する
+        SnapshotMainRenderTarget(rc, EnMainRTSnapshot::enDrawnOpacity);
 
         // フォワードレンダリング
-
-       // // ポストエフェクトを実行
-     
-       // // 2D描画
+        ForwardRendering(rc);
        
-       // // メインレンダリングターゲットの内容をフレームバッファにコピー
-      
-       // //レイトレの結果をフレームバッファに書き戻す。
+        // // ポストエフェクトを実行
+        m_postEffect.Render(rc, m_mainRenderTarget);
        
-
+        // // 2D描画
+        Render2D(rc);
+       
+        // // メインレンダリングターゲットの内容をフレームバッファにコピー
+        CopyMainRenderTargetToFrameBuffer(rc);
+#ifdef COPY_RAYTRACING_FRAMEBUFFER
+        g_graphicsEngine->DispatchRaytracing(rc);
+        //レイトレの結果をフレームバッファに書き戻す。
+        g_graphicsEngine->CopyToFrameBuffer(rc, g_graphicsEngine->GetRaytracingOutputTexture().Get());
+#endif
         // 登録されている描画オブジェクトをクリア
         m_renderObjects.clear();
+
     }
 
     void RenderingEngine::RenderToShadowMap(RenderContext& rc)
     {
-       
+        if (m_sceneGeometryData.IsBuildshadowCasterGeometryData() == false) {
+            return;
+        }
+        BeginGPUEvent("RenderToShadowMap");
+        int ligNo = 0;
+        for (auto& shadowMapRender : m_shadowMapRenders)
+        {
+            if (m_sceneLight.IsCastShadow(ligNo)) {
+                shadowMapRender.Render(
+                    rc,
+                    ligNo,
+                    m_deferredLightingCB.m_light.directionalLight[ligNo].direction,
+                    m_renderObjects,
+                    m_sceneGeometryData.GetShadowCasterMaxPositionInViewFrustum(),
+                    m_sceneGeometryData.GetShadowCasterMinPositionInViewFrustum()
+                );
+            }
+            ligNo++;
+        }
+        EndGPUEvent();
     }
 
     void RenderingEngine::ZPrepass(RenderContext& rc)
@@ -372,7 +458,11 @@ namespace nsK2EngineLow {
         }
 
         // ボリュームライトを描画。
-       
+        m_volumeLightRender.Render(
+            rc,
+            m_mainRenderTarget.GetRTVCpuDescriptorHandle(),
+            m_gBuffer[enGBufferAlbedoDepth].GetDSVCpuDescriptorHandle()
+        );
 
         // 続いて半透明オブジェクトを描画。
         for (auto& renderObj : m_renderObjects) {
@@ -430,12 +520,15 @@ namespace nsK2EngineLow {
         BeginGPUEvent("DeferredLighting");
 
         // ディファードライティングに必要なライト情報を更新する
-       
+        m_deferredLightingCB.m_light.eyePos = g_camera3D->GetPosition();
         for (int i = 0; i < MAX_DIRECTIONAL_LIGHT; i++)
         {
-          
+            for (int areaNo = 0; areaNo < NUM_SHADOW_MAP; areaNo++)
+            {
+                m_deferredLightingCB.mlvp[i][areaNo] = m_shadowMapRenders[i].GetLVPMatrix(areaNo);
+            }
         }
-       
+        m_deferredLightingCB.m_light.mViewProjInv.Inverse(g_camera3D->GetViewProjectionMatrix());
 
         // レンダリング先をメインレンダリングターゲットにする
         // メインレンダリングターゲットを設定

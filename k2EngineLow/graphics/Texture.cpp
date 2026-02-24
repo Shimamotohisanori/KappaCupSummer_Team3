@@ -28,6 +28,12 @@ namespace nsK2EngineLow {
 		m_texture->AddRef();
 		m_textureDesc = m_texture->GetDesc();
 	}
+	void Texture::IniteFromTexture(Texture& texture)
+	{
+		Release();
+		InitFromD3DResource(texture.Get());
+		m_isCubemap = texture.m_isCubemap;
+	}
 	void Texture::InitFromMemory(const char* memory, unsigned int size)
 	{
 		Release();
@@ -35,6 +41,7 @@ namespace nsK2EngineLow {
 		LoadTextureFromMemory(memory, size);
 
 	}
+	
 	void Texture::LoadTextureFromMemory(const char* memory, unsigned int size
 	)
 	{

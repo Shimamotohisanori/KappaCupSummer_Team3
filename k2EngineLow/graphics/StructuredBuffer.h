@@ -17,7 +17,7 @@ namespace nsK2EngineLow {
 		/// <param name="sizeOfElement">エレメントのサイズ。</param>
 		/// <param name="numElement">エレメントの数。</param>
 		/// <param name="initData">初期データ。</param>
-		void Init(int sizeOfElement, int numElement, void* initData);
+		void Init(int sizeOfElement, int numElement, void* initData,bool isDoubleBuffer = true);
 
 		/// <summary>
 		/// SRVに登録。

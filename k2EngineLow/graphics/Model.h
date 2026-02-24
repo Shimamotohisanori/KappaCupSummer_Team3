@@ -3,15 +3,10 @@
 #include "tkFile/TkmFile.h"
 #include "MeshParts.h"
 #include "Skeleton.h"
-
+#include "graphics/ComputeAnimationVertexBuffer.h"
 namespace nsK2EngineLow {
 	class IShaderResource;
-
-	//モデルの上方向
-	enum EnModelUpAxis {
-		enModelUpAxisY,		//モデルの上方向がY軸。
-		enModelUpAxisZ,		//モデルの上方向がZ軸。
-	};
+	class ComputeAnimationVertexBuffer;
 
 	/// <summary>
 	/// モデルの初期化データ
@@ -27,11 +22,12 @@ namespace nsK2EngineLow {
 		std::array<IShaderResource*, MAX_MODEL_EXPAND_SRV> m_expandShaderResoruceView = { nullptr };	// ユーザー拡張のシェーダーリソース。
 																										// t10レジスタから順番に割り当てられます。
 		Skeleton* m_skeleton = nullptr;									// スケルトン。
-		EnModelUpAxis m_modelUpAxis = enModelUpAxisZ;					// モデルの上方向。
+		EnModelUpAxis m_modelUpAxis = EnModelUpAxis::enModelUpAxisZ;					// モデルの上方向。
 		AlphaBlendMode m_alphaBlendMode = AlphaBlendMode_None;			// アルファブレンディングモード。
 		bool m_isDepthWrite = true;										// 深度バッファに書き込む？
 		bool m_isDepthTest = true;										// 深度テストを行う？
 		D3D12_CULL_MODE m_cullMode = D3D12_CULL_MODE_BACK;				// カリングモード。
+		ComputeAnimationVertexBuffer* m_computedAnimationVertexBuffer = nullptr;	// アニメーション済み頂点バッファを計算する処理。
 		std::array<DXGI_FORMAT, MAX_RENDERING_TARGET> m_colorBufferFormat = {
 			DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_FORMAT_UNKNOWN,

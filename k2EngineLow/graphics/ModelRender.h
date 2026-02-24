@@ -1,12 +1,11 @@
 #pragma once
 #include "MyRenderer.h"
 #include "graphics/IRenderer.h"
-
-#include "graphics/ComputeAnimationVertexBuffer.h"
+#include "geometry/GeometryData.h"
+//#include "graphics/ComputeAnimationVertexBuffer.h"
+#include "RenderingEngine.h"
 
 namespace nsK2EngineLow {
-	
-
 	/// </summary>
 	class ModelRender : public IRenderer
 	{
@@ -61,9 +60,14 @@ namespace nsK2EngineLow {
 		/// シャドウマップに描画されなくなってしまうため、その場合はこのフラグをfalseにしてください。
 		/// 例)地面など。
 		/// </param>
-		
-
-
+		void IniTranslucent(
+			const char* filePath,
+			AnimationClip* animationClips = nullptr,
+			int numAnimationClips = 0,
+			EnModelUpAxis enModelUpAxis = enModelUpAxisZ,
+			bool isShadowReciever = true,
+			int maxInstance = 1,
+			bool isFrontCullingOnDrawShadowMap = false);
 		/// <summary>
 		/// 特殊なシェーディングを行いたい場合の初期化処理。
 		/// </summary>
@@ -91,137 +95,174 @@ namespace nsK2EngineLow {
 		/// </summary>
 		/// <param name="animNo">アニメーションクリップの番号。</param>
 		/// <param name="interpolateTime">補完時間(単位：秒。)</param>
-	
-
-
-
-	//	/// <summary>
-	//	/// アニメーションの再生中？
-	//	/// </summary>
-	
-
-
-	//	/// <summary>
-	//	/// モデルを取得。
-	//	/// </summary>
-	//	/// <returns>モデル</returns>
-	
-
-
-
-	//	/// <summary>
-	//	/// 座標、回転、拡大を全て設定。
-	//	/// </summary>
-	//	/// <remark>
-	//	/// インスタンシング描画が有効の場合は、この設定は無視されます。
-	//	/// </remark>
-	//	/// <param name="pos">座標。</param>
-	//	/// <param name="rotation">回転。</param>
-	//	/// <param name="scale">拡大。</param>
-	
-
-
-	//	/// <summary>
-	//	/// 座標を設定。
-	//	/// </summary>
-	//	/// <remark>
-	//	/// インスタンシング描画が有効の場合は、この設定は無視されます。
-	//	/// </remark>
-	//	/// <param name="pos">座標。</param>
-	
-
-
-	//	/// <summary>
-	//	/// 座標を設定。
-	//	/// </summary>
-	//	/// <param name="x">x座標</param>
-	//	/// <param name="y">y座標</param>
-	//	/// <param name="z">z座標</param>
-	
-
-
-	//	/// <summary>
-	//	/// 回転を設定。
-	//	/// </summary>
-	//	/// <remark>
-	//	/// インスタンシング描画が有効の場合は、この設定は無視されます。
-	//	/// </remark>
-	//	/// <param name="rotation">回転。</param>
-	
-
-
-	//	/// <summary>
-	//	/// 拡大率を設定。
-	//	/// </summary>
-	//	/// <remark>
-	//	/// インスタンシング描画が有効の場合は、この設定は無視されます。
-	//	/// </remark>
-	//	/// <param name="scale">拡大率。</param>
-	
-
-
+		void PlayAnimation(int animNo, float interpolateTime = 0.0f)
+		{
+			m_animation.Play(animNo, interpolateTime);
+		}
+		/// <summary>
+		/// アニメーションの再生中？
+		/// </summary>
+		bool IsPlayingAnimation() const
+		{
+			return m_animation.IsPlaying();
+		}
+		/// <summary>
+		/// モデルを取得。
+		/// </summary>
+		/// <returns>モデル</returns>
+		Model& GetModel()
+		{
+			if (m_renderToGBufferModel.IsInited()) {
+				return m_renderToGBufferModel;
+			}
+			else if (m_forwardRenderModel.IsInited()) {
+				return m_forwardRenderModel;
+			}
+			else if (m_translucentModel.IsInited())
+			{
+				return m_translucentModel;
+			}
+			// ここまで来るのはおかしい。
+			return m_zprepassModel;
+		}
+		/// <summary>
+		/// 座標、回転、拡大を全て設定。
+		/// </summary>
+		/// <remark>
+		/// インスタンシング描画が有効の場合は、この設定は無視されます。
+		/// </remark>
+		/// <param name="pos">座標。</param>
+		/// <param name="rotation">回転。</param>
+		/// <param name="scale">拡大。</param>
+		void SetTRS(const Vector3& pos, const Quaternion& rotation, const Vector3& scale)
+		{
+			SetPosition(pos);
+			SetRotation(rotation);
+			SetScale(scale);
+		}
+		/// <summary>
+		/// 座標を設定。
+		/// </summary>
+		/// <remark>
+		/// インスタンシング描画が有効の場合は、この設定は無視されます。
+		/// </remark>
+		/// <param name="pos">座標。</param>
+		void SetPosition(const Vector3& pos)
+		{
+			m_position = pos;
+		}
+		/// <summary>
+		/// 座標を設定。
+		/// </summary>
+		/// <param name="x">x座標</param>
+		/// <param name="y">y座標</param>
+		/// <param name="z">z座標</param>
+		void SetPosition(float x, float y, float z)
+		{
+			SetPosition({ x, y, z });
+		}
+		/// <summary>
+		/// 回転を設定。
+		/// </summary>
+		/// <remark>
+		/// インスタンシング描画が有効の場合は、この設定は無視されます。
+		/// </remark>
+		/// <param name="rotation">回転。</param>
+		void SetRotation(const Quaternion& rotation)
+		{
+			m_rotation = rotation;
+		}
+		/// <summary>
+		/// 拡大率を設定。
+		/// </summary>
+		/// <remark>
+		/// インスタンシング描画が有効の場合は、この設定は無視されます。
+		/// </remark>
+		/// <param name="scale">拡大率。</param>
+		void SetScale(const Vector3& scale)
+		{
+			m_scale = scale;
+		}
+		void SetScale(float x, float y, float z)
+		{
+			SetScale({ x, y, z });
+		}
 	//	/// <summary>
 	//	/// シャドウキャスターのフラグを設定する
 	//	/// </summary>
-	
-
-
+		void SetShadowCasterFlag(bool flag)
+		{
+			m_isShadowCaster = flag;
+		}
 	//	/// <summary>
 	//	/// アニメーション再生の速度を設定する。
 	//	/// </summary>
 	//	/// <param name="animationSpeed">数値の分だけ倍にする。</param>
-	
-
-
+		void SetAnimationSpeed(const float animationSpeed)
+		{
+			m_animationSpeed = animationSpeed;
+		}
 	//	/// <summary>
 	//	/// ボーンの名前からボーン番号を検索。
 	//	/// </summary>
 	//	/// <param name="boneName">ボーンの名前</param>
 	//	/// <returns>ボーン番号。見つからなかった場合は-1が返ってきます。</returns>
-	
-
-
+		int FindBoneID(const wchar_t* boneName) const
+		{
+			return m_skeleton.FindBoneID(boneName);
+		}
 	//	/// <summary>
 	//	/// ボーン番号からボーンを取得。
 	//	/// </summary>
 	//	/// <param name="boneNo">ボーン番号</param>
 	//	/// <returns>ボーン</returns>
-	
-
-
-
+		Bone* GetBone(int boneNo) const
+		{
+			return m_skeleton.GetBone(boneNo);
+		}
+		void AddAnimationEvent(AnimationEventListener eventListener)
+		{
+			m_animation.AddAnimationEventListener(eventListener);
+		}
 	//	/// <summary>
 	//	/// シャドウキャスター？
 	//	/// </summary>
 	//	/// <returns></returns>
-	
-
-
+		bool IsShadowCaster() const
+		{
+			return m_isShadowCaster;
+		}
 	//	/// <summary>
 	//	/// インスタン数を取得。
 	//	/// </summary>
 	//	/// <returns></returns>
-	
-
-
-	//	/// <summary>
-	//	/// インスタンシング描画を行う？
-	//	/// </summary>
-	//	/// <returns></returns>
-	
-
-
-	//	/// <summary>
-	//	/// ワールド行列を取得。
-	//	/// </summary>
-	//	/// <param name="instanceId">
-	//	/// インスタンスID。
-	//	/// この引数はインスタンシング描画が向こうの場合は無視されます。
-	//	/// </param>
-	//	/// <returns></returns>
-	
-
-
+		int GetNumInstance() const
+		{
+			return m_numInstance;
+		}
+		/// <summary>
+		/// インスタンシング描画を行う？
+		/// </summary>
+		/// <returns></returns>
+		bool IsInstancingDraw() const
+		{
+			return m_isEnableInstancingDraw;
+		}
+		/// <summary>
+		/// ワールド行列を取得。
+		/// </summary>
+		/// <param name="instanceId">
+		/// インスタンスID。
+		/// この引数はインスタンシング描画が向こうの場合は無視されます。
+		/// </param>
+		/// <returns></returns>
+		const Matrix& GetWorldMatrix(int instanceId) const
+		{
+			if (IsInstancingDraw()) {
+				return m_worldMatrixArray[instanceId];
+			}
+			return m_zprepassModel.GetWorldMatrix();
+		}
 	//	/// <summary>
 	//	/// インスタンスを除去。
 	//	/// </summary>
@@ -229,15 +270,15 @@ namespace nsK2EngineLow {
 	//	/// インスタンス描画を利用している際に、そのインスタンスをシーンから除去したい場合に利用してください。
 	//	/// </remark>
 	//	/// <param name="instanceNo">インスタンス番号</param>
-	//	void RemoveInstance(int instanceNo);
+		void RemoveInstance(int instanceNo);
 	//	/// <summary>
 	//	/// レイトレワールドに登録するかのフラグを設定する
 	//	/// 頻繁に生成するモデル（弾など）をInitする前に引数falseで実行してください。
 	//	/// </summary>
-	
-
-
-	
+		void SetRaytracingWorld(bool flag) {
+			m_isRaytracingWorld = flag;
+		}
+private:
 	//	/// <summary>
 	//	/// スケルトンの初期化。
 	//	/// </summary>
@@ -249,16 +290,14 @@ namespace nsK2EngineLow {
 	//	/// <param name="animationClips">アニメーションクリップ。</param>
 	//	/// <param name="numAnimationClips">アニメーションクリップの数。</param>
 	//	/// <param name="enModelUpAxis">モデルの上向き。</param>
-	
-
-
+		void InitAnimation(AnimationClip* animationClips,
+			int numAnimationClips,
+			EnModelUpAxis enModelUpAxis);
 	//	/// <summary>
 	//	/// 頂点計算パスから呼び出される処理。
 	//	/// </summary>
 	//	/// <param name="rc"></param>
-	
-
-
+		void OnComputeVertex(RenderContext& rc);
 	//	/// <summary>
 	//	/// シャドウマップへの描画パスから呼ばれる処理。
 	//	/// </summary>
@@ -266,90 +305,84 @@ namespace nsK2EngineLow {
 	//	/// <param name="ligNo">ライト番号</param>
 	//	/// <param name="shadowMapNo">シャドウマップ番号</param>
 	//	/// <param name="lvpMatrix">ライトビュープロジェクション行列</param>
-	
-
-
+		void OnRenderShadowMap(
+			RenderContext& rc,
+			int ligNo,
+			int shadowMapNo,
+			const Matrix& lvpMatrix) override;
 	//	/// <summary>
 	//	/// ZPrepassから呼ばれる処理。
 	//	/// </summary>
 	//	/// <param name="rc"></param>
-	
-
-
+		void OnZPrepass(RenderContext& rc) override;
 	//	/// <summary>
 	//	/// G-Buffer描画パスから呼ばれる処理。
 	//	/// </summary>
-	
-
-
+		void OnRenderToGBuffer(RenderContext& rc) override;
 	//	/// <summary>
 	//	/// フォワードレンダーパスから呼ばれる処理。
 	//	/// </summary>
-	
-
-
+		void OnForwardRender(RenderContext& rc) override;
 	//	/// <summary>
 	//	/// 半透明オブジェクト描画パスから呼ばれる処理。
 	//	/// </summary>
 	//	/// <param name="rc"></param>
-	
-
-
+		void OnTlanslucentRender(RenderContext& rc) override;
 	//	/// <summary>
 	//	/// 各種モデルのワールド行列を更新する。
 	//	/// </summary>
-	
-
-
-	
-	//	/// <summary>
-	//	/// レンダリングエンジンで発生したイベントを受け取ったときに呼ばれる処理。
-	//	/// </summary>
-	//	/// <param name="enEvent"></param>
-	
-
-
-	//	/// <summary>
-	//	/// シャドウマップ描画用のモデルを初期化。
-	//	/// </summary>
-	//	/// <param name="renderingEngine">レンダリングエンジン</param>
-	//	/// <param name="tkmFilePath">tkmファイルパス</param>
-	//	/// <param name="modelUpAxis">モデルの上軸</param>
-	
-
-
-	//	/// <summary>
-	//	/// ZPrepass描画用のモデルを初期化。
-	//	/// </summary>
-	//	/// <param name="renderingEngine"></param>
-	//	/// <param name="tkmFilePath"></param>
-	
-
-
-
+		void UpdateWorldMatrixInModes();
+private:
+	/// <summary>
+		/// レンダリングエンジンで発生したイベントを受け取ったときに呼ばれる処理。
+		/// </summary>
+		/// <param name="enEvent"></param>
+	void OnRecievedEventFromRenderingEngine(RenderingEngine::EnEvent enEvent);
+		/// <summary>
+		/// シャドウマップ描画用のモデルを初期化。
+		/// </summary>
+		/// <param name="renderingEngine">レンダリングエンジン</param>
+		/// <param name="tkmFilePath">tkmファイルパス</param>
+		/// <param name="modelUpAxis">モデルの上軸</param>
+		void InitModelOnShadowMap(
+			RenderingEngine& renderingEngine,
+			const char* tkmFilePath,
+			EnModelUpAxis modelUpAxis,
+			bool isFrontCullingOnDrawShadowMap
+		);
+		/// <summary>
+		/// ZPrepass描画用のモデルを初期化。
+		/// </summary>
+		/// <param name="renderingEngine"></param>
+		/// <param name="tkmFilePath"></param>
+		void InitModelOnZprepass(
+			RenderingEngine& renderingEngine,
+			const char* tkmFilePath,
+			EnModelUpAxis modelUpAxis
+		);
 	//	/// <summary>
 	//	/// インスタンシング描画用の初期化処理を実行。
 	//	/// </summary>
 	//	/// <param name="maxInstance">最大インスタンス数</param>
-	
-
-
+		void InitInstancingDraw(int maxInstance);
 	//	/// <summary>
 	//	/// アニメーション済み頂点バッファの計算処理を初期化。
 	//	/// </summary>
 	//	/// <param name="tkmFilePath">tkmファイルのファイルパス</param>
 	//	/// <param name="enModelUpAxis">モデルの上軸</param>
-	
-
-
-	//	/// <summary>
-	//	/// GBuffer描画用のモデルを初期化。
-	//	/// </summary>
-	//	/// <param name="renderingEngine">レンダリングエンジン</param>
-	//	/// <param name="tkmFilePath">tkmファイルパス</param>
-	
-
-
+		void InitComputeAnimatoinVertexBuffer(
+			const char* tkmFilePath,
+			EnModelUpAxis enModelUpAxis);
+		/// <summary>
+		/// GBuffer描画用のモデルを初期化。
+		/// </summary>
+		/// <param name="renderingEngine">レンダリングエンジン</param>
+		/// <param name="tkmFilePath">tkmファイルパス</param>
+		void InitModelOnRenderGBuffer(
+		RenderingEngine& renderingEngine,
+		const char* tkmFilePath,
+		EnModelUpAxis enModelUpAxis,
+		bool isShadowReciever);
 	//	/// <summary>
 	//	/// 半透明オブジェクト描画パスで使用されるモデルを初期化。
 	//	/// </summary>
@@ -357,31 +390,28 @@ namespace nsK2EngineLow {
 	//	/// <param name="tkmFilePath"></param>
 	//	/// <param name="enModelUpAxis"></param>
 	//	/// <param name="isShadowReciever"></param>
-	
-
-
+		void InitModelOnTranslucent(
+			RenderingEngine& renderingEngine,
+			const char* tkmFilePath,
+			EnModelUpAxis enModelUpAxis,
+			bool isShadowReciever
+		);
 	//	/// <summary>
 	//	/// 各種モデルの頂点シェーダーのエントリーポイントを設定。
 	//	/// </summary>
-	
-
-
+		void SetupVertexShaderEntryPointFunc(ModelInitData& modelInitData);
 	//	/// <summary>
 	//	/// モデルを内包するバウンディングボリュームを初期化。
 	//	/// </summary>
 	//	/// <remark>
 	//	/// AABBを構築します。
 	//	/// </remark>
-	
-
-
+		void InitBoundingVolume();
 	//	/// <summary>
 	//	/// 幾何学情報を初期化
 	//	/// </summary>
 	//	/// <param name="maxInstance">インスタンス数</param>
-	
-
-
+		void InitGeometryDatas(int maxInstance);
 	public:
 		static const int NUM_SHADOW_LIGHT = 1;
 	private:
@@ -392,7 +422,7 @@ namespace nsK2EngineLow {
 		Vector3						m_scale = Vector3::One;				// 拡大率。
 		EnModelUpAxis				m_enFbxUpAxis = enModelUpAxisZ;		// FBXの上方向。
 		Animation					m_animation;						// アニメーション。
-		ComputeAnimationVertexBuffer m_computeAnimationVertexBuffer;	// アニメーション済み頂点バッファの計算処理。
+		//ComputeAnimationVertexBuffer m_computeAnimationVertexBuffer;	// アニメーション済み頂点バッファの計算処理。
 		Model						m_model;							// モデル
 		Model* m_addRaytracingWorldModel = nullptr;// レイトレワールドに登録したモデル。				
 		Model						m_zprepassModel;					// ZPrepassで描画されるモデル
@@ -411,7 +441,7 @@ namespace nsK2EngineLow {
 		bool						m_isRaytracingWorld = true;			//レイトレワールドに登録する？
 		std::unique_ptr<Matrix[]>	m_worldMatrixArray;					// ワールド行列の配列。
 		StructuredBuffer			m_worldMatrixArraySB;				// ワールド行列の配列のストラクチャードバッファ。
-							// ジオメトリ情報。
+		std::vector< GeometryData > m_geometryDatas;				// ジオメトリ情報。
 		std::unique_ptr<int[]>		m_instanceNoToWorldMatrixArrayIndexTable;	// インスタンス番号からワールド行列の配列のインデックスに変換するテーブル。
 
 

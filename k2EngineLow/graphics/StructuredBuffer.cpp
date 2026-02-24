@@ -17,7 +17,7 @@ namespace nsK2EngineLow {
 			}
 		}
 	}
-	void StructuredBuffer::Init(int sizeOfElement, int numElement, void* initData)
+	void StructuredBuffer::Init(int sizeOfElement, int numElement, void* initData, bool isDoubleBuffer)
 	{
 		Release();
 		m_sizeOfElement = sizeOfElement;

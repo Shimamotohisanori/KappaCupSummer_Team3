@@ -5,17 +5,26 @@
 namespace nsK2EngineLow {
 	K2EngineLow* g_engine = nullptr;
 	GameTime* g_gameTime = nullptr;
-	//レンダリングエンジン型のグローバル変数を作る
-	//これで、k2Engine内部で使えれるようになる
+
+	//ココから追加
+	/*********************************************/
 	RenderingEngine* g_renderingEngine = nullptr;
+	SceneLight* g_sceneLight = nullptr;
+	SpotLight* g_spotLight = nullptr;
+	/*********************************************/
+
 
 	K2EngineLow::~K2EngineLow()
 	{
 		// グローバルなアクセスポイントにnullptrを代入。
 		g_graphicsEngine = nullptr;
 		g_gameTime = nullptr;
+		
+		/**************************************/
 		g_renderingEngine = nullptr;
-
+		g_sceneLight = nullptr;
+		g_spotLight = nullptr;
+		/**************************************/
 		delete m_graphicsEngine;
 		
 		//ゲームオブジェクトマネージャーを削除。
@@ -31,6 +40,8 @@ namespace nsK2EngineLow {
 			//グラフィックエンジンの初期化。
 			m_graphicsEngine = new GraphicsEngine();
 			m_graphicsEngine->Init(hwnd, frameBufferWidth, frameBufferHeight);
+
+			g_graphicsEngine = m_graphicsEngine;
 		}
 		g_gameTime = &m_gameTime;
 		//ゲームパッドの初期化。

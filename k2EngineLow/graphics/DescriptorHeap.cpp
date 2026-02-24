@@ -16,6 +16,7 @@ namespace nsK2EngineLow {
 		for (auto& cbv : m_constantBuffers) {
 			cbv = nullptr;
 		}
+
 	}
 	DescriptorHeap::~DescriptorHeap()
 	{
